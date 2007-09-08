@@ -17,9 +17,9 @@ sub filter
              \[       # literal
              ([^]]+)  # 2: what we want to filter
              \]       # literal
-             (.*)     # 3: check for other chars on the line
+             (?=(.*)) # 3: check for other chars on the line
             }{
-                $1 . _process($package, $2, 1, $1, $3) . $3
+                $1 . _process($package, $2, 1, $1, $3)
             }xeg;
     return $in;
 }
@@ -170,11 +170,11 @@ CSS::Moonfall - port of Lua's Moonfall for dynamic CSS generation
 
 =head1 VERSION
 
-Version 0.01 released 07 Sep 07
+Version 0.02 released 08 Sep 07
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
@@ -184,9 +184,9 @@ our $VERSION = '0.01';
     our $colors = { background => '#000000', color => '#FFFFFF' };
 
     package main;
-    print MySite::CSS->filter(<<"CSS");
+    print MySite::CSS->filter(<<'CSS');
     body { width: [page_width]; }
-    #header { width: [$page_width-20]; $colors }
+    #header { width: [$page_width-20]; [colors] }
     CSS
 
 =head1 DESCRIPTION
@@ -271,7 +271,12 @@ If any value looks like a plain integer, it will have C<px> appended to it.
 =item
 
 The code that looks for C<[...]> is just a simple regular expression. This means
-you cannot include C<]> in your Perl code. This will be fixed in 0.02.
+you cannot include C<]> in your Perl code. This will be fixed in 0.03.
+
+=item
+
+You cannot have the C<[...]> span multiple lines. This too will be fixed in
+0.03.
 
 =back
 
