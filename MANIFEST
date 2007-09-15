@@ -25,3 +25,6 @@ t/006-array-ref.t
 t/007-nested-hash.t
 t/008-right-bracket.t
 t/009-synopsis.t
+t/010-nested-bracket.t
+t/011-unclosed-bracket.t
+t/012-multiline-bracket.t

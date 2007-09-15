@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use parent 'Exporter';
 use Carp;
+use Text::Balanced 'extract_bracketed';
 
 our @EXPORT = qw/filter fill/;
 
@@ -11,17 +12,29 @@ sub filter
 {
     my $package = shift;
     my $in = shift;
+    my $out = '';
 
-    $in =~ s{
-             (.*?)    # 1: indentation / check for other chars on the line
-             \[       # literal
-             ([^]]+)  # 2: what we want to filter
-             \]       # literal
-             (?=(.*)) # 3: check for other chars on the line
-            }{
-                $1 . _process($package, $2, 1, $1, $3)
-            }xeg;
-    return $in;
+    while (length $in)
+    {
+        ((my $extracted), $in, my $prefix)
+            = extract_bracketed($in, '[q]', '[^\[]+');
+        return $out . $in if !defined($extracted);
+        $out .= $prefix;
+
+        # get rid of the []
+        substr($extracted, -1, 1, '');
+        substr($extracted, 0, 1, '');
+
+        # get the rest of the line around the extracted text so we can check
+        # how much we should indent, and whether to compress the output into
+        # one line
+        my ($preline)  = $prefix =~ /(.*)$/;
+        my ($postline) = $in     =~ /^(.*)/;
+
+        $out .= _process($package, $extracted, 1, $preline, $postline);
+    }
+
+    return $out;
 }
 
 sub fill
@@ -64,7 +77,7 @@ sub _process
     $in =~ s/^\s+//;
     $in =~ s/\s+$//;
 
-    if ($in =~ /^[a-zA-Z]\w*/)
+    if ($in =~ /^[a-zA-Z_]\w*/)
     {
         return $in if !$top;
         $in = '$' . $in;
@@ -170,11 +183,11 @@ CSS::Moonfall - port of Lua's Moonfall for dynamic CSS generation
 
 =head1 VERSION
 
-Version 0.02 released 08 Sep 07
+Version 0.03 released 15 Sep 07
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
@@ -191,7 +204,7 @@ our $VERSION = '0.02';
 
 =head1 DESCRIPTION
 
-C<Moonfall> is a program for the dynamic generation of CSS. The problem it
+C<Moonfall> is an application for the dynamic generation of CSS. The problem it
 solves is making CSS more programmable. The most basic usage is to define
 variables within CSS (e.g., so similar elements can have their common color
 defined in one and only one place). C<CSS::Moonfall> aims to be a faithful port
@@ -266,19 +279,7 @@ If any value looks like a plain integer, it will have C<px> appended to it.
 
 =head1 KNOWN BUGS
 
-=over 4
-
-=item
-
-The code that looks for C<[...]> is just a simple regular expression. This means
-you cannot include C<]> in your Perl code. This will be fixed in 0.03.
-
-=item
-
-You cannot have the C<[...]> span multiple lines. This too will be fixed in
-0.03.
-
-=back
+None!
 
 =head1 SEE ALSO
 
