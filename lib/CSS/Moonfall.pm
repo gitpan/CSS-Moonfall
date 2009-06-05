@@ -1,21 +1,18 @@
-#!perl
 package CSS::Moonfall;
 use strict;
 use warnings;
-use parent 'Exporter';
-use Carp;
+use base 'Exporter';
 use Text::Balanced 'extract_bracketed';
 
 our @EXPORT = qw/filter fill/;
+our $VERSION = '0.04';
 
-sub filter
-{
+sub filter {
     my $package = shift;
     my $in = shift;
     my $out = '';
 
-    while (length $in)
-    {
+    while (length $in) {
         ((my $extracted), $in, my $prefix)
             = extract_bracketed($in, '[q]', '[^\[]+');
         return $out . $in if !defined($extracted);
@@ -37,28 +34,27 @@ sub filter
     return $out;
 }
 
-sub fill
-{
+sub fill {
     my $values = shift;
-    my $total = delete $values->{total} or croak "You must define a total size in a call to fill.";
+    my $total = delete $values->{total} or do {
+        require Carp;
+        Carp::croak "You must define a total size in a call to fill.";
+    };
+
     my $unfilled = 0;
 
-    for my $k (keys %$values)
-    {
-        if (defined(my $w = $values->{$k}))
-        {
+    for my $k (keys %$values) {
+        if (defined(my $w = $values->{$k})) {
             $total -= $w;
         }
-        else
-        {
+        else {
             ++$unfilled;
         }
     }
 
     $total = int($total / $unfilled);
 
-    for (values %$values)
-    {
+    for (values %$values) {
         defined or $_ = $total;
     }
 
@@ -66,19 +62,17 @@ sub fill
 }
 
 # this is where all the logic of expanding [foo] into some arbitrary string is
-sub _process
-{
+sub _process {
     my $package = shift;
-    my $in = shift;
-    my $top = shift;
-    my $pre = shift;
-    my $post = shift;
+    my $in      = shift;
+    my $top     = shift;
+    my $pre     = shift;
+    my $post    = shift;
 
     $in =~ s/^\s+//;
     $in =~ s/\s+$//;
 
-    if ($in =~ /^[a-zA-Z_]\w*/)
-    {
+    if ($in =~ /^[a-zA-Z_]\w*/) {
         return $in if !$top;
         $in = '$' . $in;
     }
@@ -87,19 +81,16 @@ sub _process
 
     my @kv = _expand($out);
 
-    if (@kv > 1)
-    {
+    if (@kv > 1) {
         my $joiner = ' ';
         my $indent = '';
-        if ($pre =~ /^\s*$/ && $post =~ /^\s*$/)
-        {
+        if ($pre =~ /^\s*$/ && $post =~ /^\s*$/) {
             $joiner = "\n";
             $indent = $pre;
         }
 
         my $first = 0;
-        $out = join $joiner, map
-        {
+        $out = join $joiner, map {
             my ($k, $v) = @$_;
             $k =~ s/_/-/g;
             $v = _process($package, $v, 0, $pre, $post);
@@ -107,8 +98,7 @@ sub _process
         }
         sort {$a->[0] cmp $b->[0]} @kv;
     }
-    elsif ($kv[0] =~ /^\d+$/)
-    {
+    elsif ($kv[0] =~ /^\d+$/) {
         $out .= 'px';
     }
 
@@ -118,56 +108,42 @@ sub _process
 # try to expand an array/hash ref, recursively, into a list of pairs
 # if a value is a reference, then the key is dropped and the value is expanded
 # in place
-sub _expand
-{
+sub _expand {
     my $in = shift;
     return $in if !ref($in);
 
     my @kv;
 
-    if (ref($in) eq 'HASH')
-    {
-        while (my ($k, $v) = each %$in)
-        {
-            if (ref($v))
-            {
+    if (ref($in) eq 'HASH') {
+        while (my ($k, $v) = each %$in) {
+            if (ref($v)) {
                 push @kv, _expand($v);
             }
-            else
-            {
+            else {
                 push @kv, [$k => $v];
             }
         }
     }
-    elsif (ref($in) eq 'ARRAY')
-    {
-        if (ref($in->[0]) eq 'ARRAY')
-        {
-            for (@$in)
-            {
+    elsif (ref($in) eq 'ARRAY') {
+        if (ref($in->[0]) eq 'ARRAY') {
+            for (@$in) {
                 my ($k, $v) = @$_;
-                if (ref($v))
-                {
+                if (ref($v)) {
                     push @kv, _expand($v);
                 }
-                else
-                {
+                else {
                     push @kv, [$k => $v];
                 }
             }
         }
-        else
-        {
+        else {
             my $i;
-            for ($i = 0; $i < @$in; $i += 2)
-            {
+            for ($i = 0; $i < @$in; $i += 2) {
                 my ($k, $v) = ($in->[$i], $in->[$i+1]);
-                if (ref($v))
-                {
+                if (ref($v)) {
                     push @kv, _expand($v);
                 }
-                else
-                {
+                else {
                     push @kv, [$k => $v];
                 }
             }
@@ -177,17 +153,13 @@ sub _expand
     return @kv;
 }
 
+1;
+
+__END__
+
 =head1 NAME
 
 CSS::Moonfall - port of Lua's Moonfall for dynamic CSS generation
-
-=head1 VERSION
-
-Version 0.03 released 15 Sep 07
-
-=cut
-
-our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
@@ -277,66 +249,24 @@ then you'll get output that looks like:
 
 If any value looks like a plain integer, it will have C<px> appended to it.
 
-=head1 KNOWN BUGS
-
-None!
-
 =head1 SEE ALSO
 
 The original Lua Moonfall: L<http://moonfall.org/>
 
 =head1 PORTER
 
-Shawn M Moore, C<< <sartak at gmail.com> >>
+Shawn M Moore, C<sartak@gmail.com>
 
 =head1 ORIGINAL AUTHOR
 
-Kevin Swope, C<< <kevin at moonfall.org> >>
-
-=head1 BUGS
-
-No known bugs.
-
-Please report any bugs through RT: email
-C<bug-css-moonfall at rt.cpan.org>, or browse to
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=CSS-Moonfall>.
-
-=head1 SUPPORT
-
-You can find this documentation for this module with the perldoc command.
-
-    perldoc CSS::Moonfall
-
-You can also look for information at:
-
-=over 4
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/CSS-Moonfall>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/CSS-Moonfall>
-
-=item * RT: CPAN's request tracker
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=CSS-Moonfall>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/CSS-Moonfall>
-
-=back
+Kevin Swope, C<kevin@moonfall.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2007 Shawn M Moore.
+Copyright 2007-2009 Shawn M Moore.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
 
 =cut
-
-1;
 
